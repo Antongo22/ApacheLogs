@@ -13,8 +13,14 @@ namespace ApacheLogs
         {
             try
             {
+               
                 var config = Config.LoadFromFile(configFile);
                 var logFiles = Directory.GetFiles(config.FilesDir, $"*.{config.Ext}");
+
+                if (logFiles == null || logFiles.Length == 0)
+                {
+                    throw new Exception("В выбранной ввами папке нет файлов с данным расширением!");
+                }
 
                 foreach (var logFile in logFiles)
                 {
@@ -29,7 +35,7 @@ namespace ApacheLogs
                         }
                         catch (FormatException e)
                         {
-                            Console.WriteLine($"Error parsing log line: {e.Message}");
+                            throw new Exception($"Ошибка при попытке обработки данных: {e.Message}");
                         }
                     }
                 }
