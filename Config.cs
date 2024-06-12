@@ -13,14 +13,21 @@ namespace ApacheLogs
 
         public static Config LoadFromFile(string configPath)
         {
+            if (!File.Exists(configPath))
+            {
+                Console.WriteLine("Файл конфигурации не найден!");
+                return null;
+            }
+
             var config = new Config();
             var lines = File.ReadAllLines(configPath);
+
             foreach (var line in lines)
             {
                 var parts = line.Split(new[] { '=' }, 2);
                 if (parts.Length != 2) continue;
 
-                var key = parts[0].Trim();
+                var key = parts[0].Trim().ToLower();
                 var value = parts[1].Trim();
 
                 switch (key)
@@ -35,20 +42,19 @@ namespace ApacheLogs
                         config.Format = value;
                         break;
                     case "time":
-                        if (int.TryParse(value, out var time))
+                        if (!int.TryParse(value, out var time))
                         {
-                            config.MinuteOfUpdate = time;
+                            Console.WriteLine($"Ошибка: неверный формат времени обновления '{value}', установлено значение по умолчанию 60 минут.");
+                            time = 60;
                         }
-                        else
-                        {
-                            config.MinuteOfUpdate = 60;
-                        }
+                        config.MinuteOfUpdate = time;
                         break;
                 }
             }
 
-            if (config.FilesDir == null || config.Ext == null || config.Format == null || config.MinuteOfUpdate == 0)
+            if (string.IsNullOrEmpty(config.FilesDir) || string.IsNullOrEmpty(config.Ext) || string.IsNullOrEmpty(config.Format))
             {
+                Console.WriteLine("Ошибка: не все необходимые параметры заданы в конфигурационном файле.");
                 return null;
             }
 

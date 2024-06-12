@@ -7,18 +7,18 @@ namespace ApacheLogs
 {
     internal static class DataBase
     {
-        static string databasePath = "logs.db";
+        private static readonly string DatabasePath = "logs.db";
 
         public static void Create()
         {
-            if (File.Exists(databasePath))
+            if (File.Exists(DatabasePath))
             {
-                File.Delete(databasePath);
+                File.Delete(DatabasePath);
             }
 
-            SQLiteConnection.CreateFile(databasePath);
+            SQLiteConnection.CreateFile(DatabasePath);
 
-            using (var connection = new SQLiteConnection($"Data Source={databasePath};Version=3;"))
+            using (var connection = new SQLiteConnection($"Data Source={DatabasePath};Version=3;"))
             {
                 connection.Open();
 
@@ -30,16 +30,13 @@ namespace ApacheLogs
                         status INTEGER
                     )";
 
-                using (var command = new SQLiteCommand(createTableQuery, connection))
-                {
-                    command.ExecuteNonQuery();
-                }
+                ExecuteNonQuery(connection, createTableQuery);
             }
         }
 
-        private static void InsertLog(string ip, DateTime dateOfRequest, string request, int status)
+        private static void InsertLog(LogEntry logEntry)
         {
-            using (var connection = new SQLiteConnection($"Data Source={databasePath};Version=3;"))
+            using (var connection = new SQLiteConnection($"Data Source={DatabasePath};Version=3;"))
             {
                 connection.Open();
 
@@ -49,33 +46,42 @@ namespace ApacheLogs
 
                 using (var command = new SQLiteCommand(insertQuery, connection))
                 {
-                    command.Parameters.AddWithValue("@ip", ip);
-                    command.Parameters.AddWithValue("@dateofrequest", dateOfRequest);
-                    command.Parameters.AddWithValue("@request", request);
-                    command.Parameters.AddWithValue("@status", status);
+                    command.Parameters.AddWithValue("@ip", logEntry.Data["%h"]);
+                    command.Parameters.AddWithValue("@dateofrequest", DateTime.Parse(logEntry.Data["%t"]));
+                    command.Parameters.AddWithValue("@request", logEntry.Data["%r"]);
+                    command.Parameters.AddWithValue("@status", int.Parse(logEntry.Data["%>s"]));
 
                     command.ExecuteNonQuery();
                 }
             }
         }
 
-        public static bool SetDatas(List<LogEntry> res)
+        public static bool SetDatas(List<LogEntry> logs)
         {
-            bool isSuc = false;
-            foreach (LogEntry logEntry in res)
+            bool isSuccess = true;
+
+            foreach (LogEntry logEntry in logs)
             {
                 if (logEntry.Data.ContainsKey("%h") && logEntry.Data.ContainsKey("%t") && logEntry.Data.ContainsKey("%r") && logEntry.Data.ContainsKey("%>s"))
                 {
-                    isSuc = true;
-                    InsertLog(logEntry.Data["%h"], DateTime.Parse(logEntry.Data["%t"]), logEntry.Data["%r"], int.Parse(logEntry.Data["%>s"]));
+                    try
+                    {
+                        InsertLog(logEntry);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Ошибка при вносе данных: {ex.Message}");
+                        isSuccess = false;
+                    }
                 }
                 else
                 {
-                    Console.WriteLine("Ошибка при вносе данных!");
+                    Console.WriteLine("Ошибка: недостаточно данных для вставки логов.");
+                    isSuccess = false;
                 }
             }
 
-            return isSuc;
+            return isSuccess;
         }
 
         public static void GetLogs()
@@ -85,37 +91,37 @@ namespace ApacheLogs
 
         public static void GetLogsByFilter(DateTime? dateFrom, DateTime? dateTo, string ip, int? status)
         {
-            using (var connection = new SQLiteConnection($"Data Source={databasePath};Version=3;"))
+            using (var connection = new SQLiteConnection($"Data Source={DatabasePath};Version=3;"))
             {
                 connection.Open();
 
-                string selectQuery = "SELECT ip, dateofrequest, request, status FROM Logs WHERE 1=1";
+                var selectQuery = new List<string>
+                {
+                    "SELECT ip, dateofrequest, request, status FROM Logs WHERE 1=1"
+                };
 
-                if (dateFrom.HasValue && dateTo.HasValue)
+                if (dateFrom.HasValue)
                 {
-                    selectQuery += $" AND dateofrequest BETWEEN '{dateFrom.Value:yyyy-MM-dd}' AND '{dateTo.Value:yyyy-MM-dd}'";
+                    selectQuery.Add($" AND dateofrequest >= '{dateFrom.Value:yyyy-MM-dd}'");
                 }
-                else if (dateFrom.HasValue)
+
+                if (dateTo.HasValue)
                 {
-                    selectQuery += $" AND date(dateofrequest) = '{dateFrom.Value:yyyy-MM-dd}'";
-                }
-                else if (dateTo.HasValue)
-                {
-                    selectQuery += $" AND date(dateofrequest) = '{dateTo.Value:yyyy-MM-dd}'";
+                    selectQuery.Add($" AND dateofrequest <= '{dateTo.Value:yyyy-MM-dd}'");
                 }
 
                 if (!string.IsNullOrEmpty(ip))
                 {
-                    selectQuery += $" AND ip = '{ip}'";
+                    selectQuery.Add($" AND ip = '{ip}'");
                 }
 
                 if (status.HasValue)
                 {
-                    selectQuery += $" AND status = {status}";
+                    selectQuery.Add($" AND status = {status}");
                 }
 
-                using (var command = new SQLiteCommand(selectQuery, connection))
-                using (SQLiteDataReader reader = command.ExecuteReader())
+                using (var command = new SQLiteCommand(string.Join(" ", selectQuery), connection))
+                using (var reader = command.ExecuteReader())
                 {
                     while (reader.Read())
                     {
@@ -130,6 +136,12 @@ namespace ApacheLogs
             }
         }
 
-
+        private static void ExecuteNonQuery(SQLiteConnection connection, string query)
+        {
+            using (var command = new SQLiteCommand(query, connection))
+            {
+                command.ExecuteNonQuery();
+            }
+        }
     }
 }

@@ -5,39 +5,36 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace ApacheLogs
 {
     internal class Program
     {
-        static string configpath = "config.txt";
+        static readonly string ConfigPath = "config.txt";
 
         static void Main(string[] args)
         {
             Console.WriteLine("Добро пожаловать в программу по просмотрк логов. Вот список доступных команд\n" +
                               "openconfig - открывает в редакторе по умолчанию файл конфига\n" +
-                              "close - завершает выполнение программы\n" +
-                              "parse - получает данные из конфига, сопоставляет их с логими. Полученные данные из логов записывает в базу данных\n" +
+                              "close - завершает выполнение программы в том числе tryapp\n" +
+                              "parse - получает данные из конфига, сопоставляет их с логами. Полученные данные из логов записывает в базу данных\n" +
                               "getlog (date|datefrom) (dateto) (ip) (status) - получает данные логов из уже выгруженной базе данных.");
 
             while (true)
             {
                 Console.Write("> ");
+                string command = Console.ReadLine()?.Trim().ToLower();
 
-                string command = Console.ReadLine();
-
-                switch (command.ToLower().Trim())
+                switch (command)
                 {
                     case "parse":
-                        Parse(configpath);
+                        Parse(ConfigPath);
                         break;
                     case "openconfig":
-                        OpenFileInDefaultProgram(configpath);
+                        OpenFileInDefaultProgram(ConfigPath);
                         break;
-                    case var s when s.StartsWith("getlog"):
+                    case string s when s.StartsWith("getlog"):
                         GetData(s);
                         break;
                     case "close":
@@ -53,7 +50,7 @@ namespace ApacheLogs
         {
             try
             {
-                Process.Start(filePath);
+                Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
                 Console.WriteLine("Не забудьте сохранить файл и прописать команду parse, если это требуется!");
             }
             catch (Exception ex)
@@ -62,56 +59,48 @@ namespace ApacheLogs
             }
         }
 
-        static void Parse(string configpath)
+        static void Parse(string configPath)
         {
-            List<LogEntry> res = Apache.Parse(configpath);
-            if(res == null)
+            List<LogEntry> logEntries = Apache.Parse(configPath);
+            if (logEntries == null)
             {
-                Console.WriteLine("Не удалось считать днные");
+                Console.WriteLine("Не удалось считать данные");
             }
             else
             {
-                SetDateBase(res);
-                Console.WriteLine("Данные успешно получены!");
+                if (DataBase.SetDatas(logEntries))
+                {
+                    Console.WriteLine("Данные успешно получены и записаны в базу данных!");
+                }
+                else
+                {
+                    Console.WriteLine("Ошибка при записи данных в базу");
+                }
             }
         }
 
-        static void SetDateBase(List<LogEntry> logs)
+        static void GetData(string commandLine)
         {
-            DataBase.Create();
-            bool isSuc = DataBase.SetDatas(logs);
-        }
-
-        static void GetData(string commandline)
-        {
-            string[] commands = commandline.Trim().Split(' ');
-
-            Console.WriteLine(commands.Length);
+            string[] commands = commandLine.Split(' ');
 
             DateTime? dateFrom = null;
             DateTime? dateTo = null;
             string ip = null;
             int? status = null;
 
-
             for (int i = 1; i < commands.Length; i++)
             {
-                string datetmp = commands[i];
-                DateTime date;
+                string param = commands[i];
 
-                Console.WriteLine(datetmp);
-                if (datetmp.Length == 3 && int.TryParse(datetmp, out int sta))
+                if (int.TryParse(param, out int sta) && param.Length == 3)
                 {
                     status = sta;
                 }
-                else if (datetmp.Count(c => c == '.') == 3)
+                else if (Regex.IsMatch(param, @"^\d{1,3}(\.\d{1,3}){3}$"))
                 {
-                    ip = datetmp;
+                    ip = param;
                 }
-                else if (DateTime.TryParseExact(datetmp, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) ||
-                        DateTime.TryParseExact(datetmp, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) ||
-                        DateTime.TryParseExact(datetmp, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) ||
-                        DateTime.TryParseExact(datetmp, "dd/MMM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dateTime))
+                else if (DateTime.TryParseExact(param, new[] { "dd-MM-yyyy", "dd/MM/yyyy", "dd.MM.yyyy", "dd/MMM/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime date))
                 {
                     if (dateFrom == null)
                     {
@@ -124,12 +113,12 @@ namespace ApacheLogs
                 }
                 else
                 {
-                    Console.WriteLine("Неверный формат данных!4");
+                    Console.WriteLine("Неверный формат данных!");
                     return;
                 }
             }
-               
-            DataBase.GetLogsByFilter(dateFrom, dateTo, ip, status);          
+
+            DataBase.GetLogsByFilter(dateFrom, dateTo, ip, status);
         }
     }
 }
