@@ -34,7 +34,7 @@ namespace ApacheLogs
         private static Dictionary<string, string> GetData(List<string> splits, List<string> formats)
         {
             if (splits.Count != formats.Count)
-                throw new Exception("Log entries do not match the format! Parameter count mismatch.");
+                throw new Exception("Логи не соответствуют формату! Несоответствие количества параметров.");
 
             var data = new Dictionary<string, string>();
 
@@ -51,12 +51,21 @@ namespace ApacheLogs
                         }
                         else
                         {
-                            throw new Exception("Log entries do not match the format! Error processing timestamp.");
+                            throw new Exception("Логи не соответствуют формату! Ошибка с обработкой времени.");
                         }
                         break;
-
-                    case "%r" when splits[i].StartsWith("\""):
-                        data.Add(formats[i], splits[i].Trim('\"'));
+                    case "%>s":
+                        if (int.TryParse(splits[i], out int status))
+                        {
+                            data.Add(formats[i], splits[i]);
+                        }
+                        else
+                        {
+                            throw new Exception("Логи не соответствуют формату! Ошибка с обработкой статуса.");
+                        }
+                        break;
+                    case "\\\"%r\\\"" when splits[i].StartsWith("\""):
+                        data.Add(formats[i].Replace("\\\"", ""), splits[i].Trim('\"'));
                         break;
 
                     default:

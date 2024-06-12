@@ -9,11 +9,10 @@ namespace ApacheLogs
 {
     internal class Apache
     {
-        public static void Parse(string configFile)
+        public static List<LogEntry> Parse(string configFile)
         {
             try
-            {
-               
+            {           
                 var config = Config.LoadFromFile(configFile);
                 var logFiles = Directory.GetFiles(config.FilesDir, $"*.{config.Ext}");
 
@@ -22,6 +21,8 @@ namespace ApacheLogs
                     throw new Exception("В выбранной ввами папке нет файлов с данным расширением!");
                 }
 
+                List<LogEntry> result = new List<LogEntry>();
+
                 foreach (var logFile in logFiles)
                 {
                     var logLines = File.ReadAllLines(logFile);
@@ -29,20 +30,25 @@ namespace ApacheLogs
                     {
                         try
                         {
-                            Console.WriteLine(logLine);
-                            var logEntry = LogEntry.Parse(logLine, config.Format);
-                            Console.WriteLine(logEntry);
+                            var logEntry =  LogEntry.Parse(logLine, config.Format);
+                            result.Add(logEntry);
                         }
-                        catch (FormatException e)
+                        catch (Exception e)
                         {
-                            throw new Exception($"Ошибка при попытке обработки данных: {e.Message}");
+                            Console.WriteLine($"Ошибка при попытке обработки данных: {e.Message}");
                         }
                     }
                 }
+                if(result.Count == 0)
+                {
+                    return null;
+                }
+                return result;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error: {ex.Message}");
+                return null;
             }
         }
     }
