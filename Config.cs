@@ -10,6 +10,9 @@ namespace ApacheLogs
         public string Ext { get; set; }
         public string Format { get; set; }
         public int MinuteOfUpdate { get; set; }
+        public bool ShowCron { get; set; }
+
+        private Config() { }
 
         public static Config LoadFromFile(string configPath)
         {
@@ -48,6 +51,14 @@ namespace ApacheLogs
                             time = 60;
                         }
                         config.MinuteOfUpdate = time;
+                        break;
+                    case "showcron":
+                        if(!bool.TryParse(value, out var showcron))
+                        {
+                            ConsoleHelper.WriteError($"Ошибка: неверный формат настройки отображения работы cron '{value}', установлено значение по умолчанию true.");
+                            config.ShowCron = true;
+                        }
+                        config.ShowCron = showcron;
                         break;
                 }
             }

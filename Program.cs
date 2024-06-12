@@ -10,13 +10,12 @@ namespace ApacheLogs
     internal class Program
     {
         static string configpath = "config.txt";
-        static Timer timer; // Таймер для периодического выполнения метода Parse()
+        static Timer timer; 
 
         static void Main(string[] args)
         {
             ShowWelcomeMessage();
 
-            // Запускаем таймер для периодического выполнения метода Parse() при старте приложения
             StartTimer();
 
             while (true)
@@ -27,7 +26,7 @@ namespace ApacheLogs
 
                 switch (command.ToLower().Trim())
                 {
-                    case "openconfig":
+                    case "open":
                         OpenFileInDefaultProgram(configpath);
                         break;
                     case var s when s.StartsWith("getlog"):
@@ -40,7 +39,6 @@ namespace ApacheLogs
                         Parse(configpath);
                         break;
                     case "close":
-                        // Останавливаем таймер перед выходом из приложения
                         timer?.Dispose();
                         return;
                     default:
@@ -56,12 +54,21 @@ namespace ApacheLogs
 
             if (config != null)
             {
-                // Создаем таймер для периодического выполнения метода Parse()
                 timer = new Timer(state =>
                 {
-                    Console.WriteLine("Parsing logs...");
-                    Parse(configpath);
-                    Console.Write("> ");
+                    config = Config.LoadFromFile(configpath);
+
+                    if (config.ShowCron)
+                    {
+                        Console.WriteLine("Parsing logs...");
+                    }
+                   
+                    Parse(configpath, config.ShowCron);
+
+                    if (config.ShowCron)
+                    {
+                        Console.Write("> ");
+                    }
                 }, null, TimeSpan.Zero, TimeSpan.FromMinutes(config.MinuteOfUpdate));
             }
             else
@@ -73,7 +80,7 @@ namespace ApacheLogs
         static void ShowWelcomeMessage()
         {
             ConsoleHelper.WriteInfo("Добро пожаловать в программу по просмотрк логов.Вот список доступных команд\n" +
-                              "openconfig - открывает в редакторе по умолчанию файл конфига\n" +
+                              "open - открывает в редакторе по умолчанию файл конфига\n" +
                               "close - завершает выполнение программы\n" +
                               "parse - получает данные из конфига, сопоставляет их с логими. Полученные данные из логов записывает в базу данных\n" +
                               "getlog (date|datefrom) (dateto) (ip) (status) - получает данные логов из уже выгруженной базе данных.\n" +
@@ -93,7 +100,7 @@ namespace ApacheLogs
             }
         }
 
-        static void Parse(string configpath)
+        static void Parse(string configpath, bool isShow = true)
         {
             var logs = Apache.Parse(configpath);
             if (logs == null)
@@ -106,11 +113,17 @@ namespace ApacheLogs
                 bool isSuccess = DataBase.SetDatas(logs);
                 if (isSuccess)
                 {
-                    ConsoleHelper.WriteInfo("Данные успешно получены и записаны в базу данных!");
+                    if(isShow)
+                    {
+                        ConsoleHelper.WriteInfo("Данные успешно получены и записаны в базу данных!");
+                    }                  
                 }
                 else
                 {
-                    ConsoleHelper.WriteError("Произошли ошибки при записи данных в базу.");
+                    if (isShow)
+                    {
+                        ConsoleHelper.WriteError("Произошли ошибки при записи данных в базу.");
+                    }
                 }
             }
         }
@@ -127,7 +140,6 @@ namespace ApacheLogs
             for (int i = 1; i < commands.Length; i++)
             {
                 string datetmp = commands[i];
-                DateTime date;
 
                 if (int.TryParse(datetmp, out int sta))
                 {
@@ -137,10 +149,7 @@ namespace ApacheLogs
                 {
                     ip = datetmp;
                 }
-                else if (DateTime.TryParseExact(datetmp, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) ||
-                        DateTime.TryParseExact(datetmp, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) ||
-                        DateTime.TryParseExact(datetmp, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) ||
-                        DateTime.TryParseExact(datetmp, "dd/MMM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
+                else if (DateTime.TryParseExact(datetmp, new[] { "dd-MM-yyyy", "dd/MM/yyyy", "dd.MM.yyyy", "dd/MMM/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime date))
                 {
                     if (dateFrom == null)
                     {
