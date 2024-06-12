@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 
 namespace ApacheLogs
@@ -18,8 +19,9 @@ namespace ApacheLogs
         {
             if (!File.Exists(configPath))
             {
-                ConsoleHelper.WriteError("Файл конфигурации не найден!");
-                return null;
+                ConsoleHelper.WriteError("Файл конфигурации не найден, поэтому он будет создан с стандартными параметрами!");
+                File.WriteAllText(configPath, "files_dir = C:\\Users\\..\r\next = log\r\nformat = %h %l %u %t \\\"%r\\\" %>s %b\r\ntime = 60\r\nshowcron = false");
+                Process.Start(configPath);
             }
 
             var config = new Config();
