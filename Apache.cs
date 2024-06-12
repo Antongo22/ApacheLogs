@@ -14,6 +14,12 @@ namespace ApacheLogs
             try
             {           
                 var config = Config.LoadFromFile(configFile);
+
+                if(config == null)
+                {
+                    throw new Exception("Неправильно задан файл конфигурации!");
+                }
+
                 var logFiles = Directory.GetFiles(config.FilesDir, $"*.{config.Ext}");
 
                 if (logFiles == null || logFiles.Length == 0)

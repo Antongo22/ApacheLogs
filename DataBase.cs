@@ -80,26 +80,56 @@ namespace ApacheLogs
 
         public static void GetLogs()
         {
+            GetLogsByFilter(null, null, null, null);
+        }
+
+        public static void GetLogsByFilter(DateTime? dateFrom, DateTime? dateTo, string ip, int? status)
+        {
             using (var connection = new SQLiteConnection($"Data Source={databasePath};Version=3;"))
             {
                 connection.Open();
 
-                string selectQuery = "SELECT ip, dateofrequest, request, status FROM Logs";
+                string selectQuery = "SELECT ip, dateofrequest, request, status FROM Logs WHERE 1=1";
+
+                if (dateFrom.HasValue && dateTo.HasValue)
+                {
+                    selectQuery += $" AND dateofrequest BETWEEN '{dateFrom.Value:yyyy-MM-dd}' AND '{dateTo.Value:yyyy-MM-dd}'";
+                }
+                else if (dateFrom.HasValue)
+                {
+                    selectQuery += $" AND date(dateofrequest) = '{dateFrom.Value:yyyy-MM-dd}'";
+                }
+                else if (dateTo.HasValue)
+                {
+                    selectQuery += $" AND date(dateofrequest) = '{dateTo.Value:yyyy-MM-dd}'";
+                }
+
+                if (!string.IsNullOrEmpty(ip))
+                {
+                    selectQuery += $" AND ip = '{ip}'";
+                }
+
+                if (status.HasValue)
+                {
+                    selectQuery += $" AND status = {status}";
+                }
 
                 using (var command = new SQLiteCommand(selectQuery, connection))
                 using (SQLiteDataReader reader = command.ExecuteReader())
                 {
                     while (reader.Read())
                     {
-                        string ip = reader.GetString(0);
-                        DateTime dateOfRequest = reader.GetDateTime(1);
-                        string request = reader.GetString(2);
-                        int status = reader.GetInt32(3);
+                        string logIp = reader.GetString(0);
+                        DateTime logDateOfRequest = reader.GetDateTime(1);
+                        string logRequest = reader.GetString(2);
+                        int logStatus = reader.GetInt32(3);
 
-                        Console.WriteLine($"IP: {ip}, Date: {dateOfRequest}, Request: {request}, Status: {status}");
+                        Console.WriteLine($"IP: {logIp}, Date: {logDateOfRequest}, Request: {logRequest}, Status: {logStatus}");
                     }
                 }
             }
         }
+
+
     }
 }

@@ -20,7 +20,7 @@ namespace ApacheLogs
             bool isSuc = DataBase.SetDatas(logs);
             Console.WriteLine("Log inserted successfully.");
 
-            DataBase.GetLogs();
+            DataBase.GetLogsByFilter(DateTime.Parse("28/Jul/2006"), DateTime.Parse("10/Aug/2006"), null, null);
         }
 
 

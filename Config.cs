@@ -1,8 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.IO;
 
 namespace ApacheLogs
@@ -12,6 +9,7 @@ namespace ApacheLogs
         public string FilesDir { get; set; }
         public string Ext { get; set; }
         public string Format { get; set; }
+        public int MinuteOfUpdate { get; set; }
 
         public static Config LoadFromFile(string configPath)
         {
@@ -36,10 +34,25 @@ namespace ApacheLogs
                     case "format":
                         config.Format = value;
                         break;
+                    case "time":
+                        if (int.TryParse(value, out var time))
+                        {
+                            config.MinuteOfUpdate = time;
+                        }
+                        else
+                        {
+                            config.MinuteOfUpdate = 60;
+                        }
+                        break;
                 }
             }
+
+            if (config.FilesDir == null || config.Ext == null || config.Format == null || config.MinuteOfUpdate == 0)
+            {
+                return null;
+            }
+
             return config;
         }
     }
-
 }
