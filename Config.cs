@@ -15,7 +15,7 @@ namespace ApacheLogs
         {
             if (!File.Exists(configPath))
             {
-                Console.WriteLine("Файл конфигурации не найден!");
+                ConsoleHelper.WriteError("Файл конфигурации не найден!");
                 return null;
             }
 
@@ -44,7 +44,7 @@ namespace ApacheLogs
                     case "time":
                         if (!int.TryParse(value, out var time))
                         {
-                            Console.WriteLine($"Ошибка: неверный формат времени обновления '{value}', установлено значение по умолчанию 60 минут.");
+                            ConsoleHelper.WriteError($"Ошибка: неверный формат времени обновления '{value}', установлено значение по умолчанию 60 минут.");
                             time = 60;
                         }
                         config.MinuteOfUpdate = time;
@@ -54,7 +54,7 @@ namespace ApacheLogs
 
             if (string.IsNullOrEmpty(config.FilesDir) || string.IsNullOrEmpty(config.Ext) || string.IsNullOrEmpty(config.Format))
             {
-                Console.WriteLine("Ошибка: не все необходимые параметры заданы в конфигурационном файле.");
+                ConsoleHelper.WriteError("Ошибка: не все необходимые параметры заданы в конфигурационном файле.");
                 return null;
             }
 

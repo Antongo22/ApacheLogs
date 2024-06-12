@@ -32,7 +32,7 @@ namespace ApacheLogs
                         }
                         catch (Exception e)
                         {
-                            Console.WriteLine($"Ошибка при обработке строки: {e.Message}");
+                            ConsoleHelper.WriteError($"Ошибка при обработке строки: {e.Message}");
                         }
                     }
                 }
@@ -41,7 +41,7 @@ namespace ApacheLogs
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Ошибка: {ex.Message}");
+                ConsoleHelper.WriteError($"Ошибка: {ex.Message}");
                 return null;
             }
         }

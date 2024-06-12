@@ -1,46 +1,45 @@
-﻿using Microsoft.SqlServer.Server;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace ApacheLogs
 {
     internal class Program
     {
-        static readonly string ConfigPath = "config.txt";
+        static string configpath = "config.txt";
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Добро пожаловать в программу по просмотрк логов. Вот список доступных команд\n" +
+            ConsoleHelper.WriteInfo("Добро пожаловать в программу по просмотрк логов. Вот список доступных команд\n" +
                               "openconfig - открывает в редакторе по умолчанию файл конфига\n" +
-                              "close - завершает выполнение программы в том числе tryapp\n" +
-                              "parse - получает данные из конфига, сопоставляет их с логами. Полученные данные из логов записывает в базу данных\n" +
+                              "close - завершает выполнение программы\n" +
+                              "parse - получает данные из конфига, сопоставляет их с логими. Полученные данные из логов записывает в базу данных\n" +
                               "getlog (date|datefrom) (dateto) (ip) (status) - получает данные логов из уже выгруженной базе данных.");
 
             while (true)
             {
                 Console.Write("> ");
-                string command = Console.ReadLine()?.Trim().ToLower();
 
-                switch (command)
+                string command = Console.ReadLine();
+
+                switch (command.ToLower().Trim())
                 {
                     case "parse":
-                        Parse(ConfigPath);
+                        Parse(configpath);
                         break;
                     case "openconfig":
-                        OpenFileInDefaultProgram(ConfigPath);
+                        OpenFileInDefaultProgram(configpath);
                         break;
-                    case string s when s.StartsWith("getlog"):
+                    case var s when s.StartsWith("getlog"):
                         GetData(s);
                         break;
                     case "close":
                         return;
                     default:
-                        Console.WriteLine("Неизвестная команда!");
+                        ConsoleHelper.WriteError("Неизвестная команда!");
                         break;
                 }
             }
@@ -50,38 +49,40 @@ namespace ApacheLogs
         {
             try
             {
-                Process.Start(new ProcessStartInfo(filePath) { UseShellExecute = true });
-                Console.WriteLine("Не забудьте сохранить файл и прописать команду parse, если это требуется!");
+                Process.Start(filePath);
+                ConsoleHelper.WriteInfo("Не забудьте сохранить файл и прописать команду parse, если это требуется!");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Ошибка при открытии файла: " + ex.Message);
+                ConsoleHelper.WriteError("Ошибка при открытии файла: " + ex.Message);
             }
         }
 
-        static void Parse(string configPath)
+        static void Parse(string configpath)
         {
-            List<LogEntry> logEntries = Apache.Parse(configPath);
-            if (logEntries == null)
+            var logs = Apache.Parse(configpath);
+            if (logs == null)
             {
-                Console.WriteLine("Не удалось считать данные");
+                ConsoleHelper.WriteError("Не удалось считать данные");
             }
             else
             {
-                if (DataBase.SetDatas(logEntries))
+                DataBase.Create();
+                bool isSuccess = DataBase.SetDatas(logs);
+                if (isSuccess)
                 {
-                    Console.WriteLine("Данные успешно получены и записаны в базу данных!");
+                    ConsoleHelper.WriteInfo("Данные успешно получены и записаны в базу данных!");
                 }
                 else
                 {
-                    Console.WriteLine("Ошибка при записи данных в базу");
+                    ConsoleHelper.WriteError("Произошли ошибки при записи данных в базу.");
                 }
             }
         }
 
-        static void GetData(string commandLine)
+        static void GetData(string commandline)
         {
-            string[] commands = commandLine.Split(' ');
+            string[] commands = commandline.Trim().Split(' ');
 
             DateTime? dateFrom = null;
             DateTime? dateTo = null;
@@ -90,17 +91,21 @@ namespace ApacheLogs
 
             for (int i = 1; i < commands.Length; i++)
             {
-                string param = commands[i];
+                string datetmp = commands[i];
+                DateTime date;
 
-                if (int.TryParse(param, out int sta) && param.Length == 3)
+                if (int.TryParse(datetmp, out int sta))
                 {
                     status = sta;
                 }
-                else if (Regex.IsMatch(param, @"^\d{1,3}(\.\d{1,3}){3}$"))
+                else if (datetmp.Count(c => c == '.') == 3)
                 {
-                    ip = param;
+                    ip = datetmp;
                 }
-                else if (DateTime.TryParseExact(param, new[] { "dd-MM-yyyy", "dd/MM/yyyy", "dd.MM.yyyy", "dd/MMM/yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime date))
+                else if (DateTime.TryParseExact(datetmp, "dd-MM-yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) ||
+                        DateTime.TryParseExact(datetmp, "dd/MM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) ||
+                        DateTime.TryParseExact(datetmp, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date) ||
+                        DateTime.TryParseExact(datetmp, "dd/MMM/yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out date))
                 {
                     if (dateFrom == null)
                     {
@@ -113,7 +118,7 @@ namespace ApacheLogs
                 }
                 else
                 {
-                    Console.WriteLine("Неверный формат данных!");
+                    ConsoleHelper.WriteError("Неверный формат данных!");
                     return;
                 }
             }
