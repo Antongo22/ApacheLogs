@@ -13,11 +13,7 @@ namespace ApacheLogs
 
         static void Main(string[] args)
         {
-            ConsoleHelper.WriteInfo("Добро пожаловать в программу по просмотрк логов. Вот список доступных команд\n" +
-                              "openconfig - открывает в редакторе по умолчанию файл конфига\n" +
-                              "close - завершает выполнение программы\n" +
-                              "parse - получает данные из конфига, сопоставляет их с логими. Полученные данные из логов записывает в базу данных\n" +
-                              "getlog (date|datefrom) (dateto) (ip) (status) - получает данные логов из уже выгруженной базе данных.");
+            ShowWelcomeMessage();
 
             while (true)
             {
@@ -36,6 +32,9 @@ namespace ApacheLogs
                     case var s when s.StartsWith("getlog"):
                         GetData(s);
                         break;
+                    case "clear":
+                        ClearConsole();
+                        break;
                     case "close":
                         return;
                     default:
@@ -43,6 +42,16 @@ namespace ApacheLogs
                         break;
                 }
             }
+        }
+
+        static void ShowWelcomeMessage()
+        {
+            ConsoleHelper.WriteInfo("Добро пожаловать в программу по просмотрк логов. Вот список доступных команд\n" +
+                              "openconfig - открывает в редакторе по умолчанию файл конфига\n" +
+                              "close - завершает выполнение программы\n" +
+                              "parse - получает данные из конфига, сопоставляет их с логими. Полученные данные из логов записывает в базу данных\n" +
+                              "getlog (date|datefrom) (dateto) (ip) (status) - получает данные логов из уже выгруженной базе данных.\n" +
+                              "clear - очищает консоль и выводит доступные команды.");
         }
 
         static void OpenFileInDefaultProgram(string filePath)
@@ -124,6 +133,12 @@ namespace ApacheLogs
             }
 
             DataBase.GetLogsByFilter(dateFrom, dateTo, ip, status);
+        }
+
+        static void ClearConsole()
+        {
+            Console.Clear();
+            ShowWelcomeMessage();
         }
     }
 }
