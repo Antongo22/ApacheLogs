@@ -1,8 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Threading;
+using System.IO;
 using System.Diagnostics;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 
 namespace ApacheLogs
@@ -10,10 +10,14 @@ namespace ApacheLogs
     internal class Program
     {
         static string configpath = "config.txt";
+        static Timer timer; // Таймер для периодического выполнения метода Parse()
 
         static void Main(string[] args)
         {
             ShowWelcomeMessage();
+
+            // Запускаем таймер для периодического выполнения метода Parse() при старте приложения
+            StartTimer();
 
             while (true)
             {
@@ -23,9 +27,6 @@ namespace ApacheLogs
 
                 switch (command.ToLower().Trim())
                 {
-                    case "parse":
-                        Parse(configpath);
-                        break;
                     case "openconfig":
                         OpenFileInDefaultProgram(configpath);
                         break;
@@ -35,7 +36,12 @@ namespace ApacheLogs
                     case "clear":
                         ClearConsole();
                         break;
+                    case "parse":
+                        Parse(configpath);
+                        break;
                     case "close":
+                        // Останавливаем таймер перед выходом из приложения
+                        timer?.Dispose();
                         return;
                     default:
                         ConsoleHelper.WriteError("Неизвестная команда!");
@@ -44,14 +50,34 @@ namespace ApacheLogs
             }
         }
 
+        static void StartTimer()
+        {
+            Config config = Config.LoadFromFile(configpath);
+
+            if (config != null)
+            {
+                // Создаем таймер для периодического выполнения метода Parse()
+                timer = new Timer(state =>
+                {
+                    Console.WriteLine("Parsing logs...");
+                    Parse(configpath);
+                    Console.Write("> ");
+                }, null, TimeSpan.Zero, TimeSpan.FromMinutes(config.MinuteOfUpdate));
+            }
+            else
+            {
+                ConsoleHelper.WriteError("Unable to start application due to missing or invalid configuration.");
+            }
+        }
+
         static void ShowWelcomeMessage()
         {
-            ConsoleHelper.WriteInfo("Добро пожаловать в программу по просмотрк логов. Вот список доступных команд\n" +
+            ConsoleHelper.WriteInfo("Добро пожаловать в программу по просмотрк логов.Вот список доступных команд\n" +
                               "openconfig - открывает в редакторе по умолчанию файл конфига\n" +
                               "close - завершает выполнение программы\n" +
                               "parse - получает данные из конфига, сопоставляет их с логими. Полученные данные из логов записывает в базу данных\n" +
                               "getlog (date|datefrom) (dateto) (ip) (status) - получает данные логов из уже выгруженной базе данных.\n" +
-                              "clear - очищает консоль и выводит доступные команды.");
+                              "clear - очищает консоль и выводит доступные команды.\n\n");
         }
 
         static void OpenFileInDefaultProgram(string filePath)
